@@ -1,0 +1,28 @@
+{
+  "name": "wa-scheduler",
+  "version": "1.0.0",
+  "private": true,
+  "description": "WhatsApp message scheduler with local SQLite database, attachments and CSV broadcast. Runs locally on Windows 10.",
+  "main": "server/index.js",
+  "type": "commonjs",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node server/index.js",
+    "build": "node server/build.js",
+    "reset-session": "node server/reset-session.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "better-sqlite3": "^11.3.0",
+    "cookie-parser": "^1.4.6",
+    "express": "^4.19.2",
+    "express-rate-limit": "^7.4.0",
+    "multer": "^1.4.5-lts.1",
+    "node-cron": "^3.0.3",
+    "qrcode": "^1.5.4",
+    "whatsapp-web.js": "^1.26.0",
+    "zod": "^3.23.8"
+  }
+}

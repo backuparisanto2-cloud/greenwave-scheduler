@@ -43,14 +43,22 @@ function Index() {
   return (
     <div className="min-h-screen bg-white text-[#16241d]">
       <header className="border-b border-[#dcece2]">
-        <div className="mx-auto flex max-w-5xl items-center gap-3 px-5 py-4">
-          <div className="grid h-8 w-8 place-items-center rounded-[9px] bg-gradient-to-br from-[#2f9e6b] to-[#1f6b4a] text-white">
-            ●
+        <div className="mx-auto flex max-w-5xl items-center justify-between px-5 py-4">
+          <div className="flex items-center gap-3">
+            <div className="grid h-8 w-8 place-items-center rounded-[9px] bg-gradient-to-br from-[#2f9e6b] to-[#1f6b4a] text-white">
+              ●
+            </div>
+            <div className="leading-tight">
+              <strong className="text-[15px]">WhatsApp Scheduler</strong>
+              <span className="block text-[11px] text-[#6b8177]">Penjadwal pesan lokal</span>
+            </div>
           </div>
-          <div className="leading-tight">
-            <strong className="text-[15px]">WhatsApp Scheduler</strong>
-            <span className="block text-[11px] text-[#6b8177]">Penjadwal pesan lokal</span>
-          </div>
+          <Link
+            to="/tutorial"
+            className="rounded-lg border border-[#8fcfae] bg-white px-4 py-2 text-sm font-semibold text-[#1f6b4a] shadow-[0_8px_24px_rgba(20,67,47,0.05)] transition hover:bg-[#e7f4ec]"
+          >
+            Tutorial
+          </Link>
         </div>
       </header>
 

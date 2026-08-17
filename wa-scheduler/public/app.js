@@ -730,11 +730,46 @@ function bindPage() {
   );
   document.querySelectorAll("[data-delc]").forEach((b) =>
     b.addEventListener("click", async () => {
+      if (!confirm("Hapus kontak ini?")) return;
       await api(`/api/contacts/${b.dataset.delc}`, { method: "DELETE" });
       await refreshData();
       render();
     }),
   );
+  document.querySelectorAll("[data-editc]").forEach((b) =>
+    b.addEventListener("click", () => {
+      state.editingContact = +b.dataset.editc;
+      render();
+    }),
+  );
+  document.querySelectorAll("[data-cancelc]").forEach((b) =>
+    b.addEventListener("click", () => {
+      state.editingContact = null;
+      render();
+    }),
+  );
+  document.querySelectorAll("[data-savec]").forEach((b) =>
+    b.addEventListener("click", async () => {
+      const id = b.dataset.savec;
+      try {
+        await api(`/api/contacts/${id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: document.getElementById(`edc-name-${id}`).value.trim(),
+            phone: document.getElementById(`edc-phone-${id}`).value.trim(),
+          }),
+        });
+        state.editingContact = null;
+        await refreshData();
+        toast("Kontak diperbarui");
+      } catch (err) {
+        toast(err.message);
+      }
+      render();
+    }),
+  );
+
 
   on("#csv-form", "submit", async (e) => {
     e.preventDefault();

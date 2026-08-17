@@ -28,7 +28,29 @@ router.post("/", (req, res) => {
   res.status(201).json({ ok: true });
 });
 
+router.put("/:id", (req, res) => {
+  const parsed = z
+    .object({ name: z.string().default(""), phone: z.string().min(6) })
+    .safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Nomor tidak valid" });
+  const phone = parsed.data.phone.replace(/[^\d+]/g, "");
+  if (phone.length < 6) return res.status(400).json({ error: "Nomor tidak valid" });
+  const exists = db.prepare("SELECT id FROM contacts WHERE id = ?").get(req.params.id);
+  if (!exists) return res.status(404).json({ error: "Kontak tidak ditemukan" });
+  try {
+    db.prepare("UPDATE contacts SET name = ?, phone = ? WHERE id = ?").run(
+      parsed.data.name,
+      phone,
+      req.params.id,
+    );
+  } catch (_) {
+    return res.status(409).json({ error: "Nomor sudah dipakai kontak lain" });
+  }
+  res.json({ ok: true });
+});
+
 router.delete("/:id", (req, res) => {
+
   db.prepare("DELETE FROM contacts WHERE id = ?").run(req.params.id);
   res.json({ ok: true });
 });

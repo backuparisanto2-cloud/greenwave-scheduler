@@ -245,12 +245,22 @@ function pageBaru() {
         ${
           f.targetMode === "number"
             ? `<label>Nomor tujuan (pisahkan koma untuk beberapa nomor)</label>
-               <input name="numbers" placeholder="08123456789, 6281234567890" />`
+               <input name="numbers" placeholder="08123456789, 6281234567890" value="${esc(v.numbers || "")}" />`
             : f.targetMode === "group"
               ? `<label>Pilih grup</label>
                  <select name="group">
                    <option value="">— pilih grup —</option>
-                   ${state.groups.map((g) => `<option value="${esc(g.id)}">${esc(g.name)}</option>`).join("")}
+                   ${state.groups
+                     .map(
+                       (g) =>
+                         `<option value="${esc(g.id)}" ${v.group === g.id ? "selected" : ""}>${esc(g.name)}</option>`,
+                     )
+                     .join("")}
+                   ${
+                     v.group && !state.groups.some((g) => g.id === v.group)
+                       ? `<option value="${esc(v.group)}" selected>${esc(v.groupLabel || v.group)}</option>`
+                       : ""
+                   }
                  </select>
                  <div class="sub" style="margin-top:6px">${state.groups.length ? "" : "Grup muncul setelah WhatsApp terhubung."}</div>`
               : `<label>Kontak tersimpan (${state.contacts.length})</label>
@@ -260,7 +270,7 @@ function pageBaru() {
                        ? state.contacts
                            .map(
                              (c) =>
-                               `<button type="button" class="chip ${f.picked.includes(c.id) ? "on" : ""}" data-cid="${c.id}">${esc(c.name || c.phone)}</button>`,
+                               `<button type="button" class="chip ${f.picked.includes(c.id) ? "on" : ""}" data-cid="${c.id}">${esc(c.name || c.phone)} <small>${esc(c.phone)}</small></button>`,
                            )
                            .join("")
                        : `<span class="sub">Belum ada kontak. Impor CSV di menu Kontak.</span>`
@@ -274,7 +284,7 @@ function pageBaru() {
         <div class="row two">
           <div>
             <label>Tanggal &amp; jam kirim</label>
-            <input type="datetime-local" name="run_at" required />
+            <input type="datetime-local" name="run_at" value="${esc(v.run_at || "")}" required />
           </div>
           <div>
             <label>Pengulangan</label>
@@ -295,11 +305,15 @@ function pageBaru() {
         }
         ${
           f.repeat_mode !== "once"
-            ? `<label>Berakhir pada (opsional)</label><input type="date" name="end_date" />`
+            ? `<label>Berakhir pada (opsional)</label><input type="date" name="end_date" value="${esc(v.end_date || "")}" />`
             : ""
         }
-        <div class="actions"><button class="btn" type="submit">Simpan jadwal</button></div>
+        <div class="actions">
+          <button class="btn" type="submit">${editing ? "Simpan perubahan" : "Simpan jadwal"}</button>
+          ${editing ? `<button class="btn ghost" type="button" id="cancel-edit">Batal</button>` : ""}
+        </div>
         ${state.error ? `<div class="error">${esc(state.error)}</div>` : ""}
+
       </div>
     </form>`
   );

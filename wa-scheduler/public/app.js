@@ -9,8 +9,18 @@ const state = {
   contacts: [],
   logs: [],
   groups: [],
-  form: { repeat_mode: "once", weekdays: [], targetMode: "number", picked: [] },
+  form: {
+    repeat_mode: "once",
+    weekdays: [],
+    targetMode: "number",
+    picked: [],
+    editingId: null,
+    keepAttachments: [],
+    values: {},
+  },
+  editingContact: null,
   error: "",
+
 };
 
 const PAGES = [
@@ -191,18 +201,38 @@ function pageKoneksi() {
 
 function pageBaru() {
   const f = state.form;
+  const v = f.values || {};
+  const editing = !!f.editingId;
   const days = ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"];
+  const keptAtt = (f.attachments || []).filter((a) => f.keepAttachments.includes(a.id));
   return (
-    head("Jadwal Baru", "Kirim sekali, berulang, atau broadcast dari kontak") +
+    head(
+      editing ? "Edit Jadwal" : "Jadwal Baru",
+      editing
+        ? `Mengubah jadwal #${f.editingId}`
+        : "Kirim sekali, berulang, atau broadcast dari kontak",
+    ) +
     `<form id="form-baru" class="grid two">
       <div class="card accent">
         <h2>Pesan</h2>
         <label>Judul jadwal</label>
-        <input name="title" placeholder="Reminder rapat mingguan" />
+        <input name="title" placeholder="Reminder rapat mingguan" value="${esc(v.title || "")}" />
         <label>Isi pesan (gunakan {nama} untuk nama kontak)</label>
-        <textarea name="message" placeholder="Halo {nama}, jangan lupa rapat jam 9 pagi."></textarea>
-        <label>Lampiran (maks 5 file, 25MB per file)</label>
+        <textarea name="message" placeholder="Halo {nama}, jangan lupa rapat jam 9 pagi.">${esc(v.message || "")}</textarea>
+        ${
+          keptAtt.length
+            ? `<label>Lampiran tersimpan</label>
+               <div class="chips">${keptAtt
+                 .map(
+                   (a) =>
+                     `<span class="chip on">${esc(a.file_name)} <button type="button" class="linkx" data-rmatt="${a.id}" title="Hapus lampiran">&times;</button></span>`,
+                 )
+                 .join("")}</div>`
+            : ""
+        }
+        <label>${keptAtt.length ? "Tambah lampiran" : "Lampiran"} (maks 5 file, 25MB per file)</label>
         <input type="file" name="files" multiple />
+
       </div>
 
       <div class="card">
@@ -215,12 +245,22 @@ function pageBaru() {
         ${
           f.targetMode === "number"
             ? `<label>Nomor tujuan (pisahkan koma untuk beberapa nomor)</label>
-               <input name="numbers" placeholder="08123456789, 6281234567890" />`
+               <input name="numbers" placeholder="08123456789, 6281234567890" value="${esc(v.numbers || "")}" />`
             : f.targetMode === "group"
               ? `<label>Pilih grup</label>
                  <select name="group">
                    <option value="">— pilih grup —</option>
-                   ${state.groups.map((g) => `<option value="${esc(g.id)}">${esc(g.name)}</option>`).join("")}
+                   ${state.groups
+                     .map(
+                       (g) =>
+                         `<option value="${esc(g.id)}" ${v.group === g.id ? "selected" : ""}>${esc(g.name)}</option>`,
+                     )
+                     .join("")}
+                   ${
+                     v.group && !state.groups.some((g) => g.id === v.group)
+                       ? `<option value="${esc(v.group)}" selected>${esc(v.groupLabel || v.group)}</option>`
+                       : ""
+                   }
                  </select>
                  <div class="sub" style="margin-top:6px">${state.groups.length ? "" : "Grup muncul setelah WhatsApp terhubung."}</div>`
               : `<label>Kontak tersimpan (${state.contacts.length})</label>
@@ -230,7 +270,7 @@ function pageBaru() {
                        ? state.contacts
                            .map(
                              (c) =>
-                               `<button type="button" class="chip ${f.picked.includes(c.id) ? "on" : ""}" data-cid="${c.id}">${esc(c.name || c.phone)}</button>`,
+                               `<button type="button" class="chip ${f.picked.includes(c.id) ? "on" : ""}" data-cid="${c.id}">${esc(c.name || c.phone)} <small>${esc(c.phone)}</small></button>`,
                            )
                            .join("")
                        : `<span class="sub">Belum ada kontak. Impor CSV di menu Kontak.</span>`
@@ -244,7 +284,7 @@ function pageBaru() {
         <div class="row two">
           <div>
             <label>Tanggal &amp; jam kirim</label>
-            <input type="datetime-local" name="run_at" required />
+            <input type="datetime-local" name="run_at" value="${esc(v.run_at || "")}" required />
           </div>
           <div>
             <label>Pengulangan</label>
@@ -265,11 +305,15 @@ function pageBaru() {
         }
         ${
           f.repeat_mode !== "once"
-            ? `<label>Berakhir pada (opsional)</label><input type="date" name="end_date" />`
+            ? `<label>Berakhir pada (opsional)</label><input type="date" name="end_date" value="${esc(v.end_date || "")}" />`
             : ""
         }
-        <div class="actions"><button class="btn" type="submit">Simpan jadwal</button></div>
+        <div class="actions">
+          <button class="btn" type="submit">${editing ? "Simpan perubahan" : "Simpan jadwal"}</button>
+          ${editing ? `<button class="btn ghost" type="button" id="cancel-edit">Batal</button>` : ""}
+        </div>
         ${state.error ? `<div class="error">${esc(state.error)}</div>` : ""}
+
       </div>
     </form>`
   );
@@ -305,9 +349,17 @@ function pageJadwal() {
         <div class="meta">${esc(s.run_at)} &middot; ${repeatLabel(s)} &middot; ${s.targets.length} tujuan${
           s.attachments.length ? ` &middot; ${s.attachments.length} lampiran` : ""
         }</div>
+        <div class="meta">Tujuan: ${
+          s.targets
+            .slice(0, 4)
+            .map((t) => esc(t.label ? `${t.label} (${t.target_value})` : t.target_value))
+            .join(", ") || "-"
+        }${s.targets.length > 4 ? ` +${s.targets.length - 4} lainnya` : ""}</div>
         <p class="sub" style="margin:8px 0 0">${esc((s.message || "").slice(0, 160))}</p>
         ${s.last_error ? `<div class="error">${esc(s.last_error)}</div>` : ""}
         <div class="actions">
+          <button class="btn ghost sm" data-edit="${s.id}">Edit</button>
+          <button class="btn ghost sm" data-copy="${s.id}">Salin</button>
           <button class="btn ghost sm" data-send="${s.id}">Kirim sekarang</button>
           ${
             s.status === "paused"
@@ -316,6 +368,7 @@ function pageJadwal() {
           }
           <button class="btn danger sm" data-del="${s.id}">Hapus</button>
         </div>
+
       </div>`,
           )
           .join("")}</div>`
@@ -350,13 +403,23 @@ function pageKontak() {
           ${
             state.contacts.length
               ? state.contacts
-                  .map(
-                    (c) =>
-                      `<tr><td>${esc(c.name || "-")}</td><td>${esc(c.phone)}</td><td style="text-align:right"><button class="btn danger sm" data-delc="${c.id}">Hapus</button></td></tr>`,
+                  .map((c) =>
+                    state.editingContact === c.id
+                      ? `<tr><td><input class="cell-input" id="edc-name-${c.id}" value="${esc(c.name || "")}" placeholder="Nama" /></td>
+                         <td><input class="cell-input" id="edc-phone-${c.id}" value="${esc(c.phone)}" placeholder="Nomor" /></td>
+                         <td style="text-align:right;white-space:nowrap">
+                           <button class="btn sm" data-savec="${c.id}">Simpan</button>
+                           <button class="btn ghost sm" data-cancelc="1">Batal</button>
+                         </td></tr>`
+                      : `<tr><td>${esc(c.name || "-")}</td><td>${esc(c.phone)}</td><td style="text-align:right;white-space:nowrap">
+                           <button class="btn ghost sm" data-editc="${c.id}">Edit</button>
+                           <button class="btn danger sm" data-delc="${c.id}">Hapus</button>
+                         </td></tr>`,
                   )
                   .join("")
               : `<tr><td colspan="3" class="sub">Belum ada kontak.</td></tr>`
           }
+
           </tbody></table>
         </div>
       </div>
@@ -407,7 +470,75 @@ function pagePengaturan() {
   );
 }
 
+/* ---------------- Form helpers ---------------- */
+
+function emptyForm() {
+  return {
+    repeat_mode: "once",
+    weekdays: [],
+    targetMode: "number",
+    picked: [],
+    editingId: null,
+    keepAttachments: [],
+    attachments: [],
+    values: {},
+  };
+}
+
+// simpan isi input saat form dirender ulang (ganti mode tujuan / pengulangan)
+function captureForm() {
+  const el = document.getElementById("form-baru");
+  if (!el) return;
+  const fd = new FormData(el);
+  const f = state.form;
+  const v = { ...(f.values || {}) };
+  v.title = String(fd.get("title") || "");
+  v.message = String(fd.get("message") || "");
+  if (el.querySelector('[name="numbers"]')) v.numbers = String(fd.get("numbers") || "");
+  if (el.querySelector('[name="group"]')) v.group = String(fd.get("group") || "");
+  if (el.querySelector('[name="run_at"]')) v.run_at = String(fd.get("run_at") || "");
+  if (el.querySelector('[name="end_date"]')) v.end_date = String(fd.get("end_date") || "");
+  f.values = v;
+}
+
+const toInputDateTime = (runAt) => String(runAt || "").replace(" ", "T").slice(0, 16);
+
+function loadSchedule(s, { copy = false } = {}) {
+  const numbers = s.targets.filter((t) => t.target_type === "number");
+  const group = s.targets.find((t) => t.target_type === "group");
+  const contactPhones = state.contacts.map((c) => c.phone);
+  const allFromContacts =
+    numbers.length > 0 && numbers.every((t) => contactPhones.includes(t.target_value));
+
+  const f = emptyForm();
+  f.editingId = s.id;
+  f.repeat_mode = s.repeat_mode;
+  f.weekdays = String(s.weekdays || "")
+    .split(",")
+    .filter((x) => x !== "")
+    .map(Number);
+  f.attachments = s.attachments || [];
+  f.keepAttachments = (s.attachments || []).map((a) => a.id);
+  f.targetMode = group ? "group" : allFromContacts ? "contacts" : "number";
+  f.picked = allFromContacts
+    ? state.contacts.filter((c) => numbers.some((t) => t.target_value === c.phone)).map((c) => c.id)
+    : [];
+  f.values = {
+    title: copy ? `${s.title || "(tanpa judul)"}` : s.title || "",
+    message: s.message || "",
+    numbers: numbers.map((t) => t.target_value).join(", "),
+    group: group ? group.target_value : "",
+    groupLabel: group ? group.label : "",
+    run_at: toInputDateTime(s.run_at),
+    end_date: s.end_date || "",
+  };
+  state.form = f;
+  state.page = "baru";
+  state.error = "";
+}
+
 /* ---------------- Bindings ---------------- */
+
 
 function bindPage() {
   const on = (sel, ev, fn) => {
@@ -422,6 +553,7 @@ function bindPage() {
 
   document.querySelectorAll("[data-tmode]").forEach((b) =>
     b.addEventListener("click", () => {
+      captureForm();
       state.form.targetMode = b.dataset.tmode;
       render();
     }),
@@ -442,18 +574,35 @@ function bindPage() {
       b.classList.toggle("on");
     }),
   );
+  document.querySelectorAll("[data-rmatt]").forEach((b) =>
+    b.addEventListener("click", () => {
+      captureForm();
+      const id = +b.dataset.rmatt;
+      state.form.keepAttachments = state.form.keepAttachments.filter((x) => x !== id);
+      render();
+    }),
+  );
+  on("#cancel-edit", "click", () => {
+    state.form = emptyForm();
+    state.page = "jadwal";
+    render();
+  });
   on("#pick-all", "click", () => {
+    captureForm();
     state.form.picked = state.contacts.map((c) => c.id);
     render();
   });
   on("#pick-none", "click", () => {
+    captureForm();
     state.form.picked = [];
     render();
   });
   on("#repeat_mode", "change", (e) => {
+    captureForm();
     state.form.repeat_mode = e.target.value;
     render();
   });
+
 
   on("#form-baru", "submit", async (e) => {
     e.preventDefault();
@@ -493,6 +642,7 @@ function bindPage() {
       run_at: String(fd.get("run_at") || ""),
       end_date: fd.get("end_date") ? String(fd.get("end_date")) : null,
       targets,
+      keep_attachments: f.keepAttachments,
     };
     if (f.repeat_mode === "weekly" && f.weekdays.length === 0) {
       state.error = "Pilih minimal satu hari untuk jadwal mingguan.";
@@ -506,16 +656,45 @@ function bindPage() {
     }
 
     try {
-      await api("/api/schedules", { method: "POST", body });
-      state.form = { repeat_mode: "once", weekdays: [], targetMode: "number", picked: [] };
+      if (f.editingId) {
+        await api(`/api/schedules/${f.editingId}`, { method: "PUT", body });
+        toast("Jadwal diperbarui");
+      } else {
+        await api("/api/schedules", { method: "POST", body });
+        toast("Jadwal tersimpan");
+      }
+      state.form = emptyForm();
       state.page = "jadwal";
       await refreshData();
-      toast("Jadwal tersimpan");
     } catch (err) {
       state.error = err.message;
     }
     render();
   });
+
+  document.querySelectorAll("[data-edit]").forEach((b) =>
+    b.addEventListener("click", () => {
+      const s = state.schedules.find((x) => String(x.id) === b.dataset.edit);
+      if (!s) return;
+      loadSchedule(s);
+      render();
+    }),
+  );
+  document.querySelectorAll("[data-copy]").forEach((b) =>
+    b.addEventListener("click", async () => {
+      try {
+        const copy = await api(`/api/schedules/${b.dataset.copy}/duplicate`, { method: "POST" });
+        await refreshData();
+        const fresh = state.schedules.find((x) => x.id === copy.id) || copy;
+        loadSchedule(fresh, { copy: true });
+        toast("Salinan dibuat — atur tanggal & jam lalu simpan");
+      } catch (err) {
+        toast(err.message);
+      }
+      render();
+    }),
+  );
+
 
   document.querySelectorAll("[data-send]").forEach((b) =>
     b.addEventListener("click", async () => {
@@ -551,11 +730,46 @@ function bindPage() {
   );
   document.querySelectorAll("[data-delc]").forEach((b) =>
     b.addEventListener("click", async () => {
+      if (!confirm("Hapus kontak ini?")) return;
       await api(`/api/contacts/${b.dataset.delc}`, { method: "DELETE" });
       await refreshData();
       render();
     }),
   );
+  document.querySelectorAll("[data-editc]").forEach((b) =>
+    b.addEventListener("click", () => {
+      state.editingContact = +b.dataset.editc;
+      render();
+    }),
+  );
+  document.querySelectorAll("[data-cancelc]").forEach((b) =>
+    b.addEventListener("click", () => {
+      state.editingContact = null;
+      render();
+    }),
+  );
+  document.querySelectorAll("[data-savec]").forEach((b) =>
+    b.addEventListener("click", async () => {
+      const id = b.dataset.savec;
+      try {
+        await api(`/api/contacts/${id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: document.getElementById(`edc-name-${id}`).value.trim(),
+            phone: document.getElementById(`edc-phone-${id}`).value.trim(),
+          }),
+        });
+        state.editingContact = null;
+        await refreshData();
+        toast("Kontak diperbarui");
+      } catch (err) {
+        toast(err.message);
+      }
+      render();
+    }),
+  );
+
 
   on("#csv-form", "submit", async (e) => {
     e.preventDefault();
@@ -651,7 +865,9 @@ async function boot() {
   setInterval(async () => {
     if (!state.user) return;
     await refreshData();
+    if (state.editingContact) return;
     if (["jadwal", "riwayat", "kontak"].includes(state.page)) render();
+
   }, 15000);
 }
 

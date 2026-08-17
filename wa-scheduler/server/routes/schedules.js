@@ -94,7 +94,112 @@ router.post("/", upload.array("files", 5), (req, res) => {
   res.status(201).json(decorate(db.prepare("SELECT * FROM schedules WHERE id = ?").get(id)));
 });
 
+router.put("/:id", upload.array("files", 5), (req, res) => {
+  const existing = db.prepare("SELECT * FROM schedules WHERE id = ?").get(req.params.id);
+  if (!existing) return res.status(404).json({ error: "Jadwal tidak ditemukan" });
+
+  let payload;
+  try {
+    payload = JSON.parse(req.body.payload || "{}");
+  } catch (_) {
+    return res.status(400).json({ error: "Payload tidak valid" });
+  }
+  const parsed = bodySchema.safeParse(payload);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0].message });
+
+  const d = parsed.data;
+  const runDate = scheduler.parseLocal(d.run_at);
+  if (!runDate) return res.status(400).json({ error: "Tanggal/jam tidak valid" });
+
+  const keep = Array.isArray(payload.keep_attachments) ? payload.keep_attachments.map(Number) : null;
+
+  db.prepare(
+    `UPDATE schedules SET title=?, message=?, repeat_mode=?, weekdays=?, month_day=?, run_at=?,
+     end_date=?, status='pending', last_error=NULL
+     WHERE id = ?`,
+  ).run(
+    d.title,
+    d.message,
+    d.repeat_mode,
+    d.weekdays,
+    d.month_day ?? null,
+    scheduler.fmt(runDate),
+    d.end_date || null,
+    existing.id,
+  );
+
+  db.prepare("DELETE FROM schedule_targets WHERE schedule_id = ?").run(existing.id);
+  const insTarget = db.prepare(
+    "INSERT INTO schedule_targets (schedule_id, target_type, target_value, label) VALUES (?,?,?,?)",
+  );
+  for (const t of d.targets) insTarget.run(existing.id, t.target_type, t.target_value, t.label || "");
+
+  if (keep) {
+    const olds = db.prepare("SELECT * FROM attachments WHERE schedule_id = ?").all(existing.id);
+    const delStmt = db.prepare("DELETE FROM attachments WHERE id = ?");
+    for (const a of olds) {
+      if (keep.includes(a.id)) continue;
+      delStmt.run(a.id);
+      const p = path.join(UPLOAD_DIR, a.stored_name);
+      if (fs.existsSync(p)) fs.unlinkSync(p);
+    }
+  }
+
+  const insFile = db.prepare(
+    "INSERT INTO attachments (schedule_id, file_name, stored_name, mime_type, size) VALUES (?,?,?,?,?)",
+  );
+  for (const f of req.files || []) insFile.run(existing.id, f.originalname, f.filename, f.mimetype, f.size);
+
+  res.json(decorate(db.prepare("SELECT * FROM schedules WHERE id = ?").get(existing.id)));
+});
+
+router.post("/:id/duplicate", (req, res) => {
+  const s = db.prepare("SELECT * FROM schedules WHERE id = ?").get(req.params.id);
+  if (!s) return res.status(404).json({ error: "Jadwal tidak ditemukan" });
+
+  let runDate = scheduler.parseLocal(s.run_at) || new Date();
+  const now = new Date();
+  if (runDate.getTime() <= now.getTime()) runDate = new Date(now.getTime() + 60 * 60 * 1000);
+
+  const info = db
+    .prepare(
+      `INSERT INTO schedules (title, message, repeat_mode, weekdays, month_day, run_at, end_date, status)
+       VALUES (?,?,?,?,?,?,?,'paused')`,
+    )
+    .run(
+      `${s.title || "(tanpa judul)"} (salinan)`,
+      s.message,
+      s.repeat_mode,
+      s.weekdays,
+      s.month_day,
+      scheduler.fmt(runDate),
+      s.end_date,
+    );
+  const newId = info.lastInsertRowid;
+
+  const insTarget = db.prepare(
+    "INSERT INTO schedule_targets (schedule_id, target_type, target_value, label) VALUES (?,?,?,?)",
+  );
+  for (const t of db.prepare("SELECT * FROM schedule_targets WHERE schedule_id = ?").all(s.id)) {
+    insTarget.run(newId, t.target_type, t.target_value, t.label);
+  }
+
+  const insFile = db.prepare(
+    "INSERT INTO attachments (schedule_id, file_name, stored_name, mime_type, size) VALUES (?,?,?,?,?)",
+  );
+  for (const a of db.prepare("SELECT * FROM attachments WHERE schedule_id = ?").all(s.id)) {
+    const src = path.join(UPLOAD_DIR, a.stored_name);
+    if (!fs.existsSync(src)) continue;
+    const stored = `${Date.now()}-${Math.random().toString(16).slice(2)}${path.extname(a.stored_name)}`;
+    fs.copyFileSync(src, path.join(UPLOAD_DIR, stored));
+    insFile.run(newId, a.file_name, stored, a.mime_type, a.size);
+  }
+
+  res.status(201).json(decorate(db.prepare("SELECT * FROM schedules WHERE id = ?").get(newId)));
+});
+
 router.post("/:id/pause", (req, res) => {
+
   db.prepare("UPDATE schedules SET status = 'paused' WHERE id = ? AND status = 'pending'").run(
     req.params.id,
   );

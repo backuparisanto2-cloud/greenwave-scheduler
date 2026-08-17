@@ -102,10 +102,22 @@ Aplikasi ini berjalan 100% di PC Windows 10 Anda. Semua data — jadwal, kontak,
 
 ---
 
-## Broadcast dengan CSV
+## Mengedit & menyalin jadwal
+
+Di menu **Daftar Jadwal**, setiap jadwal punya tombol:
+
+- **Edit** — membuka kembali form berisi data jadwal (judul, pesan, tujuan, waktu, pengulangan, lampiran). Lampiran lama bisa dihapus satu per satu lewat tanda `×`, dan Anda bisa menambah lampiran baru. Klik **Simpan perubahan** atau **Batal**.
+- **Salin** — menduplikat jadwal beserta tujuan dan lampirannya. Salinan dibuat dalam status *dijeda* lalu langsung terbuka di form edit, sehingga Anda tinggal mengubah tanggal/jam (atau isi pesan) dan menekan **Simpan perubahan** untuk mengaktifkannya.
+- **Kirim sekarang**, **Jeda / Lanjutkan**, dan **Hapus** tetap tersedia seperti biasa.
+
+Daftar jadwal juga menampilkan ringkasan tujuan (nama + nomor) agar mudah dicek sebelum dikirim.
+
+---
+
+## Kontak (nama & nomor telepon)
 
 1. Klik menu **Kontak / CSV**.
-2. Impor file CSV dengan format:
+2. Tambah manual dengan mengisi **Nama** dan **Nomor**, atau impor file CSV dengan format:
 
    ```csv
    nama,nomor
@@ -113,9 +125,12 @@ Aplikasi ini berjalan 100% di PC Windows 10 Anda. Semua data — jadwal, kontak,
    Sinta,081298765432
    ```
 
-3. Saat membuat jadwal, pilih tujuan **Kontak / CSV** dan pilih kontak yang sudah diimpor.
-4. Gunakan `{nama}` di isi pesan untuk personalisasi otomatis.
-5. Broadcast diberi jeda acak 3–8 detik antar nomor agar lebih aman dari pemblokiran WhatsApp.
+3. Setiap baris kontak punya tombol **Edit** untuk mengubah nama atau nomor langsung di tabel (klik **Simpan** / **Batal**), dan tombol **Hapus**.
+4. Nomor otomatis dinormalisasi (hanya angka dan `+`); nomor yang sudah dipakai kontak lain akan ditolak.
+5. Saat membuat jadwal, pilih tujuan **Kontak / CSV** lalu pilih kontak yang diinginkan — chip menampilkan nama beserta nomornya.
+6. Gunakan `{nama}` di isi pesan untuk personalisasi otomatis.
+7. Broadcast diberi jeda acak 3–8 detik antar nomor agar lebih aman dari pemblokiran WhatsApp.
+
 
 ---
 

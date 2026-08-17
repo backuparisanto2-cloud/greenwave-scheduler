@@ -226,3 +226,25 @@ th { color: var(--muted); font-weight: 600; font-size: 0.78rem; text-transform: 
   .bottom-nav button span.ic { font-size: 1.05rem; }
   .bottom-nav button.active { color: var(--green-700); font-weight: 600; }
 }
+
+/* Edit inline & lampiran tersimpan */
+.cell-input {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font: inherit;
+  font-size: 0.85rem;
+  background: #fff;
+}
+.cell-input:focus { outline: none; border-color: var(--green-500); }
+.chip small { opacity: 0.6; font-weight: 400; margin-left: 4px; }
+.linkx {
+  border: none;
+  background: transparent;
+  color: var(--danger);
+  cursor: pointer;
+  font-size: 0.95rem;
+  line-height: 1;
+  padding: 0 2px;
+}

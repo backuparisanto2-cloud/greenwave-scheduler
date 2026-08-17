@@ -88,13 +88,24 @@ const sections = [
     ],
   },
   {
-    title: "Broadcast CSV",
+    title: "Mengedit & menyalin jadwal",
     body: [
-      "Menu Kontak / CSV → impor file dengan format: nama,nomor.",
-      "Saat membuat jadwal pilih tujuan Kontak/CSV dan pilih kontak yang sudah diimpor.",
+      "Menu Daftar Jadwal → tombol Edit membuka form berisi data jadwal (judul, pesan, tujuan, waktu, pengulangan, lampiran).",
+      "Lampiran lama bisa dihapus lewat tanda × dan lampiran baru bisa ditambahkan, lalu klik Simpan perubahan atau Batal.",
+      "Tombol Salin menduplikat jadwal beserta tujuan dan lampirannya; salinan dibuat dalam status dijeda dan langsung terbuka di form edit.",
+      "Ubah tanggal/jam salinan lalu Simpan perubahan untuk mengaktifkannya.",
+    ],
+  },
+  {
+    title: "Kontak (nama & nomor) dan broadcast CSV",
+    body: [
+      "Menu Kontak / CSV → tambah manual dengan kolom Nama dan Nomor, atau impor file dengan format: nama,nomor.",
+      "Setiap baris kontak punya tombol Edit untuk mengubah nama/nomor langsung di tabel, serta tombol Hapus.",
+      "Saat membuat jadwal pilih tujuan Kontak/CSV; chip menampilkan nama beserta nomor kontak.",
       "Sistem memberi jeda acak 3–8 detik antar nomor agar lebih aman.",
     ],
   },
+
   {
     title: "Jalankan otomatis saat Windows menyala",
     body: [

@@ -107,13 +107,37 @@ const sections = [
   },
 
   {
-    title: "Jalankan otomatis saat Windows menyala",
+    title: "Autostart & auto-restart di Windows 10",
     body: [
-      "Buat file start-wa.bat di C:\\wa-scheduler dengan cd /d C:\\wa-scheduler lalu npm start.",
-      "Tekan Win + R, ketik shell:startup, lalu salin shortcut start-wa.bat ke folder Startup.",
-      "Atau gunakan Task Scheduler dengan trigger At log on dan action Start a program.",
+      "Buat start-wa.bat berisi loop: @echo off / cd /d C:\\wa-scheduler / :loop / call npm start / timeout /t 5 /nobreak >nul / goto loop — aplikasi otomatis jalan lagi bila berhenti.",
+      "Cara mudah: Win + R → shell:startup → salin shortcut start-wa.bat ke folder Startup.",
+      "Cara tangguh: Task Scheduler → Create Task, centang Run whether user is logged on or not + Run with highest privileges.",
+      "Triggers: tambahkan At startup dan At log on. Actions: Start a program → C:\\wa-scheduler\\start-wa.bat, Start in C:\\wa-scheduler.",
+      "Settings: If the task fails, restart every 1 minute, up to 999 times; If the task is already running → Do not start a new instance; hapus centang Stop the task if it runs longer than.",
     ],
   },
+  {
+    title: "Pulih otomatis setelah listrik mati",
+    body: [
+      "Di BIOS/UEFI aktifkan Restore on AC Power Loss (atau After Power Failure) = Power On agar PC menyala sendiri saat listrik kembali.",
+      "Settings → System → Power & sleep → Sleep: Never. Untuk server 24 jam jalankan juga powercfg /h off sebagai Administrator.",
+      "Nonaktifkan Fast Startup di Control Panel → Power Options agar trigger At startup selalu berjalan.",
+      "Atur Active hours Windows Update supaya restart otomatis tidak terjadi di jam pengiriman pesan.",
+      "Sesi WhatsApp tersimpan di folder data/, jadi setelah PC menyala kembali tidak perlu scan QR ulang.",
+    ],
+  },
+  {
+    title: "Opsi lanjutan: jalankan sebagai Windows Service (NSSM)",
+    body: [
+      "Unduh NSSM dari nssm.cc, salin nssm.exe ke C:\\wa-scheduler, lalu jalankan nssm install WAScheduler sebagai Administrator.",
+      "Path: C:\\Program Files\\nodejs\\node.exe — Arguments: server/index.js — Startup directory: C:\\wa-scheduler.",
+      "Details → Startup type: Automatic (Delayed Start). Exit actions → Restart application, delay 5000 ms.",
+      "I/O → arahkan output & error ke C:\\wa-scheduler\\data\\logs\\service.log untuk memantau masalah.",
+      "Kelola dengan nssm start / restart / stop / remove WAScheduler. Jalankan npm run build sekali sebelum memasang service.",
+      "Verifikasi: restart PC, tunggu ±1 menit, buka http://localhost:3000.",
+    ],
+  },
+
   {
     title: "Troubleshooting",
     body: [

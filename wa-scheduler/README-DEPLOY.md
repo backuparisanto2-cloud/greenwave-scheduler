@@ -134,29 +134,102 @@ Daftar jadwal juga menampilkan ringkasan tujuan (nama + nomor) agar mudah dicek 
 
 ---
 
-## Menjalankan otomatis saat Windows menyala (opsional)
+## Autostart & auto-restart di Windows 10
 
-### Cara cepat via folder Startup
+Tujuan: aplikasi otomatis hidup saat Windows menyala, dan otomatis jalan kembali bila proses berhenti (crash, `Ctrl + C` tak sengaja, atau listrik mati lalu PC menyala lagi).
 
-1. Buat file `start-wa.bat` di `C:\wa-scheduler` dengan isi:
+### 1. Auto-restart sederhana (batch loop)
+
+Buat file `start-wa.bat` di `C:\wa-scheduler` dengan isi:
+
+```bat
+@echo off
+title WhatsApp Scheduler
+cd /d C:\wa-scheduler
+:loop
+call npm start
+echo.
+echo Aplikasi berhenti. Menjalankan ulang dalam 5 detik...
+timeout /t 5 /nobreak >nul
+goto loop
+```
+
+Jika `npm start` keluar karena error apa pun, skrip menunggu 5 detik lalu menjalankannya lagi otomatis. Untuk menghentikan permanen: tutup jendela Command Prompt-nya.
+
+### 2. Autostart saat Windows menyala
+
+**Cara A — folder Startup (paling mudah, butuh login user)**
+
+1. Tekan `Win + R` → ketik `shell:startup` → Enter.
+2. Klik kanan `start-wa.bat` → **Create shortcut**, lalu pindahkan shortcut itu ke folder Startup.
+
+**Cara B — Task Scheduler (lebih tangguh, disarankan)**
+
+1. Buka **Task Scheduler** → **Create Task** (bukan *Basic Task*).
+2. Tab **General**: nama `WhatsApp Scheduler`, pilih **Run whether user is logged on or not**, centang **Run with highest privileges**.
+3. Tab **Triggers** → **New** → **At startup**. Tambah satu trigger lagi: **At log on**.
+   - Centang **Repeat task every 5 minutes** → for a duration of **Indefinitely** (opsional, sebagai jaring pengaman).
+4. Tab **Actions** → **New** → **Start a program**
+   - Program: `C:\wa-scheduler\start-wa.bat`
+   - Start in: `C:\wa-scheduler`
+5. Tab **Conditions**: hilangkan centang **Start the task only if the computer is on AC power**.
+6. Tab **Settings**:
+   - Centang **If the task fails, restart every** → `1 minute`, **Attempt to restart up to** → `999` times.
+   - Hilangkan centang **Stop the task if it runs longer than**.
+   - **If the task is already running**: pilih **Do not start a new instance**.
+7. OK → masukkan password Windows bila diminta.
+
+### 3. Pulih otomatis setelah listrik mati
+
+1. **BIOS/UEFI** — masuk BIOS saat booting (biasanya `Del` / `F2`), cari opsi **Restore on AC Power Loss** / **AC Back** / **After Power Failure**, set ke **Power On** (atau **Last State**). Dengan ini PC menyala sendiri begitu listrik kembali.
+2. **Matikan tidur otomatis** — Settings → System → Power & sleep → set **Sleep** ke **Never**. Untuk PC yang selalu online, nonaktifkan juga hibernate: buka Command Prompt sebagai Administrator lalu jalankan `powercfg /h off`.
+3. **Nonaktifkan Fast Startup** (agar trigger *At startup* selalu jalan): Control Panel → Power Options → *Choose what the power buttons do* → *Change settings that are currently unavailable* → hilangkan centang **Turn on fast startup**.
+4. **Windows Update** — atur **Active hours** agar Windows tidak restart di jam kerja pengiriman pesan.
+5. Disarankan memakai **UPS** kecil agar PC mati dengan rapi saat listrik padam.
+
+### 4. Opsi lanjutan: jalankan sebagai Windows Service (NSSM)
+
+Cara paling stabil — aplikasi jalan tanpa jendela Command Prompt dan otomatis restart sendiri.
+
+1. Unduh **NSSM** dari <https://nssm.cc/download>, ekstrak, lalu salin `nssm.exe` (versi `win64`) ke `C:\wa-scheduler`.
+2. Buka Command Prompt **sebagai Administrator** di `C:\wa-scheduler`, jalankan:
 
    ```bat
-   @echo off
-   cd /d C:\wa-scheduler
-   npm start
+   nssm install WAScheduler
    ```
 
-2. Tekan `Win + R` → ketik `shell:startup` → Enter.
-3. Salin *shortcut* file `start-wa.bat` ke folder Startup tersebut.
+3. Isi jendela NSSM:
+   - **Path:** `C:\Program Files\nodejs\node.exe`
+   - **Arguments:** `server/index.js`
+   - **Startup directory:** `C:\wa-scheduler`
+   - Tab **Details** → *Startup type*: **Automatic (Delayed Start)**
+   - Tab **Exit actions** → *Restart application*, **Delay restart by** `5000` ms
+   - Tab **I/O** → Output/Error: `C:\wa-scheduler\data\logs\service.log`
+4. Klik **Install service**, lalu jalankan:
 
-### Cara via Task Scheduler
+   ```bat
+   nssm start WAScheduler
+   ```
 
-1. Buka **Task Scheduler** → **Create Task**.
-2. Tab **Triggers** → **New** → pilih **At log on**.
-3. Tab **Actions** → **New** → **Start a program**.
-4. Program: `C:\wa-scheduler\start-wa.bat`.
-5. **Start in:** `C:\wa-scheduler`.
-6. Centang **Run with highest privileges** → OK.
+Perintah lain yang berguna:
+
+| Perintah | Fungsi |
+| --- | --- |
+| `nssm restart WAScheduler` | Restart layanan |
+| `nssm stop WAScheduler` | Hentikan layanan |
+| `nssm edit WAScheduler` | Ubah konfigurasi |
+| `nssm remove WAScheduler confirm` | Hapus layanan |
+
+> Jalankan `npm run build` sekali sebelum memasang service, karena service memanggil `node server/index.js` langsung.
+
+### 5. Verifikasi & troubleshooting autostart
+
+- Restart PC, tunggu ±1 menit, lalu buka <http://localhost:3000>. Jika halaman login muncul, autostart berhasil.
+- Task Scheduler → pilih task → tab **History** untuk melihat penyebab kegagalan.
+- Untuk mode service, cek log di `C:\wa-scheduler\data\logs\service.log`.
+- Sesi WhatsApp tersimpan di folder `data/`, jadi setelah restart **tidak perlu scan QR ulang**.
+- Jadwal yang terlewat saat PC mati akan diproses kembali begitu aplikasi hidup (dengan batas toleransi).
+
 
 ---
 

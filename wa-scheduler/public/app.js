@@ -865,7 +865,9 @@ async function boot() {
   setInterval(async () => {
     if (!state.user) return;
     await refreshData();
+    if (state.editingContact) return;
     if (["jadwal", "riwayat", "kontak"].includes(state.page)) render();
+
   }, 15000);
 }
 

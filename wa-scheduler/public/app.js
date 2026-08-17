@@ -349,9 +349,17 @@ function pageJadwal() {
         <div class="meta">${esc(s.run_at)} &middot; ${repeatLabel(s)} &middot; ${s.targets.length} tujuan${
           s.attachments.length ? ` &middot; ${s.attachments.length} lampiran` : ""
         }</div>
+        <div class="meta">Tujuan: ${
+          s.targets
+            .slice(0, 4)
+            .map((t) => esc(t.label ? `${t.label} (${t.target_value})` : t.target_value))
+            .join(", ") || "-"
+        }${s.targets.length > 4 ? ` +${s.targets.length - 4} lainnya` : ""}</div>
         <p class="sub" style="margin:8px 0 0">${esc((s.message || "").slice(0, 160))}</p>
         ${s.last_error ? `<div class="error">${esc(s.last_error)}</div>` : ""}
         <div class="actions">
+          <button class="btn ghost sm" data-edit="${s.id}">Edit</button>
+          <button class="btn ghost sm" data-copy="${s.id}">Salin</button>
           <button class="btn ghost sm" data-send="${s.id}">Kirim sekarang</button>
           ${
             s.status === "paused"
@@ -360,6 +368,7 @@ function pageJadwal() {
           }
           <button class="btn danger sm" data-del="${s.id}">Hapus</button>
         </div>
+
       </div>`,
           )
           .join("")}</div>`

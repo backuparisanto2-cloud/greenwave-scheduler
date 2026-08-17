@@ -201,18 +201,38 @@ function pageKoneksi() {
 
 function pageBaru() {
   const f = state.form;
+  const v = f.values || {};
+  const editing = !!f.editingId;
   const days = ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"];
+  const keptAtt = (f.attachments || []).filter((a) => f.keepAttachments.includes(a.id));
   return (
-    head("Jadwal Baru", "Kirim sekali, berulang, atau broadcast dari kontak") +
+    head(
+      editing ? "Edit Jadwal" : "Jadwal Baru",
+      editing
+        ? `Mengubah jadwal #${f.editingId}`
+        : "Kirim sekali, berulang, atau broadcast dari kontak",
+    ) +
     `<form id="form-baru" class="grid two">
       <div class="card accent">
         <h2>Pesan</h2>
         <label>Judul jadwal</label>
-        <input name="title" placeholder="Reminder rapat mingguan" />
+        <input name="title" placeholder="Reminder rapat mingguan" value="${esc(v.title || "")}" />
         <label>Isi pesan (gunakan {nama} untuk nama kontak)</label>
-        <textarea name="message" placeholder="Halo {nama}, jangan lupa rapat jam 9 pagi."></textarea>
-        <label>Lampiran (maks 5 file, 25MB per file)</label>
+        <textarea name="message" placeholder="Halo {nama}, jangan lupa rapat jam 9 pagi.">${esc(v.message || "")}</textarea>
+        ${
+          keptAtt.length
+            ? `<label>Lampiran tersimpan</label>
+               <div class="chips">${keptAtt
+                 .map(
+                   (a) =>
+                     `<span class="chip on">${esc(a.file_name)} <button type="button" class="linkx" data-rmatt="${a.id}" title="Hapus lampiran">&times;</button></span>`,
+                 )
+                 .join("")}</div>`
+            : ""
+        }
+        <label>${keptAtt.length ? "Tambah lampiran" : "Lampiran"} (maks 5 file, 25MB per file)</label>
         <input type="file" name="files" multiple />
+
       </div>
 
       <div class="card">

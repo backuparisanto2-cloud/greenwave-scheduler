@@ -403,13 +403,23 @@ function pageKontak() {
           ${
             state.contacts.length
               ? state.contacts
-                  .map(
-                    (c) =>
-                      `<tr><td>${esc(c.name || "-")}</td><td>${esc(c.phone)}</td><td style="text-align:right"><button class="btn danger sm" data-delc="${c.id}">Hapus</button></td></tr>`,
+                  .map((c) =>
+                    state.editingContact === c.id
+                      ? `<tr><td><input class="cell-input" id="edc-name-${c.id}" value="${esc(c.name || "")}" placeholder="Nama" /></td>
+                         <td><input class="cell-input" id="edc-phone-${c.id}" value="${esc(c.phone)}" placeholder="Nomor" /></td>
+                         <td style="text-align:right;white-space:nowrap">
+                           <button class="btn sm" data-savec="${c.id}">Simpan</button>
+                           <button class="btn ghost sm" data-cancelc="1">Batal</button>
+                         </td></tr>`
+                      : `<tr><td>${esc(c.name || "-")}</td><td>${esc(c.phone)}</td><td style="text-align:right;white-space:nowrap">
+                           <button class="btn ghost sm" data-editc="${c.id}">Edit</button>
+                           <button class="btn danger sm" data-delc="${c.id}">Hapus</button>
+                         </td></tr>`,
                   )
                   .join("")
               : `<tr><td colspan="3" class="sub">Belum ada kontak.</td></tr>`
           }
+
           </tbody></table>
         </div>
       </div>

@@ -553,6 +553,7 @@ function bindPage() {
 
   document.querySelectorAll("[data-tmode]").forEach((b) =>
     b.addEventListener("click", () => {
+      captureForm();
       state.form.targetMode = b.dataset.tmode;
       render();
     }),
@@ -573,18 +574,35 @@ function bindPage() {
       b.classList.toggle("on");
     }),
   );
+  document.querySelectorAll("[data-rmatt]").forEach((b) =>
+    b.addEventListener("click", () => {
+      captureForm();
+      const id = +b.dataset.rmatt;
+      state.form.keepAttachments = state.form.keepAttachments.filter((x) => x !== id);
+      render();
+    }),
+  );
+  on("#cancel-edit", "click", () => {
+    state.form = emptyForm();
+    state.page = "jadwal";
+    render();
+  });
   on("#pick-all", "click", () => {
+    captureForm();
     state.form.picked = state.contacts.map((c) => c.id);
     render();
   });
   on("#pick-none", "click", () => {
+    captureForm();
     state.form.picked = [];
     render();
   });
   on("#repeat_mode", "change", (e) => {
+    captureForm();
     state.form.repeat_mode = e.target.value;
     render();
   });
+
 
   on("#form-baru", "submit", async (e) => {
     e.preventDefault();

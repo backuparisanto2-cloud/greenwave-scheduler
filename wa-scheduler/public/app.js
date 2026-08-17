@@ -642,6 +642,7 @@ function bindPage() {
       run_at: String(fd.get("run_at") || ""),
       end_date: fd.get("end_date") ? String(fd.get("end_date")) : null,
       targets,
+      keep_attachments: f.keepAttachments,
     };
     if (f.repeat_mode === "weekly" && f.weekdays.length === 0) {
       state.error = "Pilih minimal satu hari untuk jadwal mingguan.";
@@ -655,16 +656,45 @@ function bindPage() {
     }
 
     try {
-      await api("/api/schedules", { method: "POST", body });
-      state.form = { repeat_mode: "once", weekdays: [], targetMode: "number", picked: [] };
+      if (f.editingId) {
+        await api(`/api/schedules/${f.editingId}`, { method: "PUT", body });
+        toast("Jadwal diperbarui");
+      } else {
+        await api("/api/schedules", { method: "POST", body });
+        toast("Jadwal tersimpan");
+      }
+      state.form = emptyForm();
       state.page = "jadwal";
       await refreshData();
-      toast("Jadwal tersimpan");
     } catch (err) {
       state.error = err.message;
     }
     render();
   });
+
+  document.querySelectorAll("[data-edit]").forEach((b) =>
+    b.addEventListener("click", () => {
+      const s = state.schedules.find((x) => String(x.id) === b.dataset.edit);
+      if (!s) return;
+      loadSchedule(s);
+      render();
+    }),
+  );
+  document.querySelectorAll("[data-copy]").forEach((b) =>
+    b.addEventListener("click", async () => {
+      try {
+        const copy = await api(`/api/schedules/${b.dataset.copy}/duplicate`, { method: "POST" });
+        await refreshData();
+        const fresh = state.schedules.find((x) => x.id === copy.id) || copy;
+        loadSchedule(fresh, { copy: true });
+        toast("Salinan dibuat — atur tanggal & jam lalu simpan");
+      } catch (err) {
+        toast(err.message);
+      }
+      render();
+    }),
+  );
+
 
   document.querySelectorAll("[data-send]").forEach((b) =>
     b.addEventListener("click", async () => {

@@ -9,8 +9,18 @@ const state = {
   contacts: [],
   logs: [],
   groups: [],
-  form: { repeat_mode: "once", weekdays: [], targetMode: "number", picked: [] },
+  form: {
+    repeat_mode: "once",
+    weekdays: [],
+    targetMode: "number",
+    picked: [],
+    editingId: null,
+    keepAttachments: [],
+    values: {},
+  },
+  editingContact: null,
   error: "",
+
 };
 
 const PAGES = [

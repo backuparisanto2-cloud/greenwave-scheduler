@@ -115,7 +115,7 @@ router.put("/:id", upload.array("files", 5), (req, res) => {
 
   db.prepare(
     `UPDATE schedules SET title=?, message=?, repeat_mode=?, weekdays=?, month_day=?, run_at=?,
-     end_date=?, status = CASE WHEN status IN ('paused') THEN status ELSE 'pending' END, last_error=NULL
+     end_date=?, status='pending', last_error=NULL
      WHERE id = ?`,
   ).run(
     d.title,

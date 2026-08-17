@@ -470,7 +470,75 @@ function pagePengaturan() {
   );
 }
 
+/* ---------------- Form helpers ---------------- */
+
+function emptyForm() {
+  return {
+    repeat_mode: "once",
+    weekdays: [],
+    targetMode: "number",
+    picked: [],
+    editingId: null,
+    keepAttachments: [],
+    attachments: [],
+    values: {},
+  };
+}
+
+// simpan isi input saat form dirender ulang (ganti mode tujuan / pengulangan)
+function captureForm() {
+  const el = document.getElementById("form-baru");
+  if (!el) return;
+  const fd = new FormData(el);
+  const f = state.form;
+  const v = { ...(f.values || {}) };
+  v.title = String(fd.get("title") || "");
+  v.message = String(fd.get("message") || "");
+  if (el.querySelector('[name="numbers"]')) v.numbers = String(fd.get("numbers") || "");
+  if (el.querySelector('[name="group"]')) v.group = String(fd.get("group") || "");
+  if (el.querySelector('[name="run_at"]')) v.run_at = String(fd.get("run_at") || "");
+  if (el.querySelector('[name="end_date"]')) v.end_date = String(fd.get("end_date") || "");
+  f.values = v;
+}
+
+const toInputDateTime = (runAt) => String(runAt || "").replace(" ", "T").slice(0, 16);
+
+function loadSchedule(s, { copy = false } = {}) {
+  const numbers = s.targets.filter((t) => t.target_type === "number");
+  const group = s.targets.find((t) => t.target_type === "group");
+  const contactPhones = state.contacts.map((c) => c.phone);
+  const allFromContacts =
+    numbers.length > 0 && numbers.every((t) => contactPhones.includes(t.target_value));
+
+  const f = emptyForm();
+  f.editingId = s.id;
+  f.repeat_mode = s.repeat_mode;
+  f.weekdays = String(s.weekdays || "")
+    .split(",")
+    .filter((x) => x !== "")
+    .map(Number);
+  f.attachments = s.attachments || [];
+  f.keepAttachments = (s.attachments || []).map((a) => a.id);
+  f.targetMode = group ? "group" : allFromContacts ? "contacts" : "number";
+  f.picked = allFromContacts
+    ? state.contacts.filter((c) => numbers.some((t) => t.target_value === c.phone)).map((c) => c.id)
+    : [];
+  f.values = {
+    title: copy ? `${s.title || "(tanpa judul)"}` : s.title || "",
+    message: s.message || "",
+    numbers: numbers.map((t) => t.target_value).join(", "),
+    group: group ? group.target_value : "",
+    groupLabel: group ? group.label : "",
+    run_at: toInputDateTime(s.run_at),
+    end_date: s.end_date || "",
+  };
+  state.form = f;
+  state.page = "baru";
+  state.error = "";
+}
+
 /* ---------------- Bindings ---------------- */
+
 
 function bindPage() {
   const on = (sel, ev, fn) => {

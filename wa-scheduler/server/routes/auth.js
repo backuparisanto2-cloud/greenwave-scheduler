@@ -5,12 +5,17 @@ const rateLimit = require("express-rate-limit");
 const { z } = require("zod");
 const { db } = require("../db");
 
-const sessions = new Map(); // token -> { userId, email, expires }
+const sessions = new Map(); // token -> { userId, email, role, expires }
 const TTL = 1000 * 60 * 60 * 12;
 
 function createSession(user) {
   const token = crypto.randomBytes(32).toString("hex");
-  sessions.set(token, { userId: user.id, email: user.email, expires: Date.now() + TTL });
+  sessions.set(token, {
+    userId: user.id,
+    email: user.email,
+    role: user.role || "operator",
+    expires: Date.now() + TTL,
+  });
   return token;
 }
 
@@ -22,13 +27,30 @@ function requireAuth(req, res, next) {
     return res.status(401).json({ error: "Belum login" });
   }
   s.expires = Date.now() + TTL;
-  req.user = { id: s.userId, email: s.email };
+  // ambil role terbaru dari database (bila diubah admin saat sesi aktif)
+  const fresh = db.prepare("SELECT id, email, role FROM users WHERE id = ?").get(s.userId);
+  if (!fresh) {
+    sessions.delete(token);
+    return res.status(401).json({ error: "Pengguna tidak ditemukan" });
+  }
+  s.role = fresh.role;
+  req.user = { id: fresh.id, email: fresh.email, role: fresh.role };
   next();
+}
+
+function requireAdmin(req, res, next) {
+  requireAuth(req, res, () => {
+    if (req.user.role !== "admin") {
+      return res.status(403).json({ error: "Khusus admin" });
+    }
+    next();
+  });
 }
 
 const router = express.Router();
 
 const loginLimiter = rateLimit({ windowMs: 10 * 60 * 1000, max: 10 });
+
 
 router.post("/login", loginLimiter, (req, res) => {
   const parsed = z
@@ -44,7 +66,7 @@ router.post("/login", loginLimiter, (req, res) => {
   }
   const token = createSession(user);
   res.cookie("sid", token, { httpOnly: true, sameSite: "lax", maxAge: TTL });
-  res.json({ email: user.email });
+  res.json({ email: user.email, role: user.role });
 });
 
 router.post("/logout", (req, res) => {
@@ -54,7 +76,9 @@ router.post("/logout", (req, res) => {
   res.json({ ok: true });
 });
 
-router.get("/me", requireAuth, (req, res) => res.json({ email: req.user.email }));
+router.get("/me", requireAuth, (req, res) =>
+  res.json({ email: req.user.email, role: req.user.role }),
+);
 
 router.post("/password", requireAuth, (req, res) => {
   const parsed = z
@@ -74,4 +98,4 @@ router.post("/password", requireAuth, (req, res) => {
   res.json({ ok: true });
 });
 
-module.exports = { router, requireAuth };
+module.exports = { router, requireAuth, requireAdmin };

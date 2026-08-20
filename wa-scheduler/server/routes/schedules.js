@@ -4,7 +4,7 @@ const express = require("express");
 const multer = require("multer");
 const { z } = require("zod");
 const { db, UPLOAD_DIR } = require("../db");
-const { requireAuth } = require("./auth");
+const { requireAdmin } = require("./auth");
 const scheduler = require("../scheduler");
 
 const storage = multer.diskStorage({
@@ -15,7 +15,7 @@ const storage = multer.diskStorage({
 const upload = multer({ storage, limits: { fileSize: 25 * 1024 * 1024 } });
 
 const router = express.Router();
-router.use(requireAuth);
+router.use(requireAdmin);
 
 const targetSchema = z.object({
   target_type: z.enum(["number", "group"]).default("number"),

@@ -2,11 +2,11 @@ const express = require("express");
 const multer = require("multer");
 const { z } = require("zod");
 const { db } = require("../db");
-const { requireAuth } = require("./auth");
+const { requireAdmin } = require("./auth");
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 2 * 1024 * 1024 } });
 const router = express.Router();
-router.use(requireAuth);
+router.use(requireAdmin);
 
 router.get("/", (req, res) => {
   res.json(db.prepare("SELECT * FROM contacts ORDER BY name ASC").all());

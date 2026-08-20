@@ -122,11 +122,13 @@ async function runSchedule(schedule) {
 }
 
 let running = false;
+let lastTick = null;
 
 async function tick() {
   if (running) return;
   running = true;
   try {
+    lastTick = fmt(new Date());
     if (!wa.isReady()) return;
     const now = fmt(new Date());
     const due = db
@@ -149,11 +151,46 @@ async function tick() {
   }
 }
 
+// jadwal yang terlewat terlalu lama (PC mati/restart) tidak dikirim agar tidak basi
+function expireStale() {
+  const hours = Number(getSetting("catchup_hours", "12")) || 12;
+  const limit = fmt(new Date(Date.now() - hours * 3600 * 1000));
+  const stale = db
+    .prepare("SELECT * FROM schedules WHERE status = 'pending' AND run_at < ?")
+    .all(limit);
+
+  for (const s of stale) {
+    const next = nextRun(s, new Date());
+    const endsAt = s.end_date ? parseLocal(`${s.end_date} 23:59`) : null;
+    if (next && (!endsAt || next <= endsAt)) {
+      db.prepare("UPDATE schedules SET run_at = ?, last_error = ? WHERE id = ?").run(
+        fmt(next),
+        `Jadwal ${s.run_at} terlewat saat PC mati, dijadwalkan ulang`,
+        s.id,
+      );
+    } else {
+      db.prepare("UPDATE schedules SET status = 'failed', last_error = ? WHERE id = ?").run(
+        "Terlewat saat PC mati (melebihi batas toleransi)",
+        s.id,
+      );
+    }
+  }
+  if (stale.length) console.log(`[scheduler] ${stale.length} jadwal terlewat diproses`);
+}
+
+function getLastTick() {
+  return lastTick;
+}
+
 function start() {
   // pulihkan job yang tergantung saat aplikasi mati di tengah pengiriman
   db.prepare("UPDATE schedules SET status = 'pending' WHERE status = 'sending'").run();
+  expireStale();
   cron.schedule("* * * * *", tick);
+  // catch-up: jadwal yang jatuh tempo saat PC mati langsung diproses begitu WA siap
+  setTimeout(tick, 15000);
   console.log("[scheduler] aktif, cek jadwal setiap menit");
 }
 
-module.exports = { start, tick, fmt, parseLocal, nextRun };
+module.exports = { start, tick, fmt, parseLocal, nextRun, getLastTick, expireStale };
+

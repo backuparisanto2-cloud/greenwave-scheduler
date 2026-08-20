@@ -35,6 +35,20 @@ function buildClient() {
   });
 }
 
+let reconnectTimer = null;
+let reconnectAttempts = 0;
+
+function scheduleReconnect(delayMs = 10000) {
+  if (reconnectTimer) return;
+  reconnectAttempts++;
+  const wait = Math.min(delayMs * Math.min(reconnectAttempts, 6), 120000);
+  console.log(`[wa] mencoba sambung ulang dalam ${Math.round(wait / 1000)} detik…`);
+  reconnectTimer = setTimeout(() => {
+    reconnectTimer = null;
+    start();
+  }, wait);
+}
+
 function start() {
   if (!Client) {
     state.status = "error";
@@ -60,6 +74,7 @@ function start() {
     state.status = "ready";
     state.qrDataUrl = null;
     state.lastError = null;
+    reconnectAttempts = 0;
     state.me = client.info && client.info.wid ? client.info.wid._serialized : null;
     console.log("[wa] WhatsApp siap digunakan.");
   });
@@ -67,6 +82,8 @@ function start() {
   client.on("auth_failure", (msg) => {
     state.status = "error";
     state.lastError = String(msg);
+    client = null;
+    scheduleReconnect();
   });
 
   client.on("disconnected", (reason) => {
@@ -74,15 +91,18 @@ function start() {
     state.lastError = String(reason);
     state.me = null;
     client = null;
-    setTimeout(start, 5000);
+    scheduleReconnect(5000);
   });
 
   client.initialize().catch((err) => {
     state.status = "error";
     state.lastError = err.message;
+    client = null;
     console.error("[wa] gagal inisialisasi:", err.message);
+    scheduleReconnect();
   });
 }
+
 
 function getStatus() {
   return { ...state, connected: state.status === "ready" };

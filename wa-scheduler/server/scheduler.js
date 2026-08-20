@@ -1,6 +1,6 @@
 const path = require("path");
 const cron = require("node-cron");
-const { db, UPLOAD_DIR } = require("./db");
+const { db, UPLOAD_DIR, getSetting } = require("./db");
 const wa = require("./wa-client");
 
 // ---- helpers waktu lokal (format "YYYY-MM-DD HH:mm") ----

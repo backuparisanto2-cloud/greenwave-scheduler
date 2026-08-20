@@ -2,12 +2,14 @@ const path = require("path");
 const express = require("express");
 const cookieParser = require("cookie-parser");
 
-const { db } = require("./db");
+const { db, getSetting, setSetting } = require("./db");
 const wa = require("./wa-client");
 const scheduler = require("./scheduler");
-const { router: authRouter, requireAuth } = require("./routes/auth");
+const { router: authRouter, requireAuth, requireAdmin } = require("./routes/auth");
 const schedulesRouter = require("./routes/schedules");
 const contactsRouter = require("./routes/contacts");
+const usersRouter = require("./routes/users");
+const statsRouter = require("./routes/stats");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -19,8 +21,23 @@ app.use(cookieParser());
 app.use("/api/auth", authRouter);
 app.use("/api/schedules", schedulesRouter);
 app.use("/api/contacts", contactsRouter);
+app.use("/api/users", usersRouter);
+app.use("/api/stats", statsRouter);
+
+app.get("/api/settings", requireAuth, (req, res) =>
+  res.json({ catchup_hours: Number(getSetting("catchup_hours", "12")) }),
+);
+
+app.put("/api/settings", requireAdmin, (req, res) => {
+  const h = Number(req.body && req.body.catchup_hours);
+  if (!Number.isFinite(h) || h < 1 || h > 168)
+    return res.status(400).json({ error: "Toleransi 1–168 jam" });
+  setSetting("catchup_hours", Math.round(h));
+  res.json({ ok: true });
+});
 
 app.get("/api/wa/status", requireAuth, (req, res) => res.json(wa.getStatus()));
+
 
 app.get("/api/wa/groups", requireAuth, async (req, res) => {
   try {

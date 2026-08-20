@@ -71,21 +71,53 @@ CREATE TABLE IF NOT EXISTS send_logs (
 );
 
 CREATE INDEX IF NOT EXISTS idx_schedules_runat ON schedules(status, run_at);
+
+CREATE TABLE IF NOT EXISTS settings (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL
+);
 `);
 
-const DEFAULT_EMAIL = process.env.ADMIN_EMAIL || "arisanto@mentarisatria.net.id";
+// --- migrasi aman: kolom role pada users ---
+const userCols = db.prepare("PRAGMA table_info(users)").all().map((c) => c.name);
+if (!userCols.includes("role")) {
+  db.exec("ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'operator'");
+}
+
+const DEFAULT_EMAIL = (process.env.ADMIN_EMAIL || "arisanto@mentarisatria.net.id").toLowerCase();
 const DEFAULT_PASSWORD = process.env.ADMIN_PASSWORD || "Backmeup2023";
 
 function seedAdmin() {
   const count = db.prepare("SELECT COUNT(*) AS c FROM users").get().c;
   if (count === 0) {
-    db.prepare("INSERT INTO users (email, password_hash) VALUES (?, ?)").run(
-      DEFAULT_EMAIL.toLowerCase(),
+    db.prepare("INSERT INTO users (email, password_hash, role) VALUES (?, ?, 'admin')").run(
+      DEFAULT_EMAIL,
       bcrypt.hashSync(DEFAULT_PASSWORD, 10),
     );
     console.log(`[db] admin user dibuat: ${DEFAULT_EMAIL}`);
   }
+  // pastikan email seed selalu admin, dan minimal ada satu admin
+  db.prepare("UPDATE users SET role = 'admin' WHERE email = ?").run(DEFAULT_EMAIL);
+  const admins = db.prepare("SELECT COUNT(*) AS c FROM users WHERE role = 'admin'").get().c;
+  if (admins === 0) {
+    db.prepare("UPDATE users SET role = 'admin' WHERE id = (SELECT MIN(id) FROM users)").run();
+  }
 }
 seedAdmin();
 
-module.exports = { db, DATA_DIR, UPLOAD_DIR, SESSION_DIR };
+// --- settings helper ---
+function getSetting(key, fallback = null) {
+  const row = db.prepare("SELECT value FROM settings WHERE key = ?").get(key);
+  return row ? row.value : fallback;
+}
+
+function setSetting(key, value) {
+  db.prepare(
+    "INSERT INTO settings (key, value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+  ).run(key, String(value));
+}
+
+if (getSetting("catchup_hours") === null) setSetting("catchup_hours", "12");
+
+module.exports = { db, DATA_DIR, UPLOAD_DIR, SESSION_DIR, getSetting, setSetting };
+

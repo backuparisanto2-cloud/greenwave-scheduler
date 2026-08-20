@@ -66,7 +66,7 @@ router.post("/login", loginLimiter, (req, res) => {
   }
   const token = createSession(user);
   res.cookie("sid", token, { httpOnly: true, sameSite: "lax", maxAge: TTL });
-  res.json({ email: user.email });
+  res.json({ email: user.email, role: user.role });
 });
 
 router.post("/logout", (req, res) => {
@@ -76,7 +76,9 @@ router.post("/logout", (req, res) => {
   res.json({ ok: true });
 });
 
-router.get("/me", requireAuth, (req, res) => res.json({ email: req.user.email }));
+router.get("/me", requireAuth, (req, res) =>
+  res.json({ email: req.user.email, role: req.user.role }),
+);
 
 router.post("/password", requireAuth, (req, res) => {
   const parsed = z
@@ -96,4 +98,4 @@ router.post("/password", requireAuth, (req, res) => {
   res.json({ ok: true });
 });
 
-module.exports = { router, requireAuth };
+module.exports = { router, requireAuth, requireAdmin };

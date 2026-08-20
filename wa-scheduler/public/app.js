@@ -19,18 +19,24 @@ const state = {
     values: {},
   },
   editingContact: null,
+  stats: null,
+  users: [],
   error: "",
 
 };
 
-const PAGES = [
+const ALL_PAGES = [
   { id: "koneksi", label: "Koneksi", ic: "\u25C9" },
-  { id: "baru", label: "Jadwal Baru", ic: "\u002B" },
-  { id: "jadwal", label: "Daftar Jadwal", ic: "\u2637" },
-  { id: "kontak", label: "Kontak / CSV", ic: "\u2630" },
+  { id: "status", label: "Status Jadwal", ic: "\u25F4" },
+  { id: "baru", label: "Jadwal Baru", ic: "\u002B", admin: true },
+  { id: "jadwal", label: "Daftar Jadwal", ic: "\u2637", admin: true },
+  { id: "kontak", label: "Kontak / CSV", ic: "\u2630", admin: true },
   { id: "riwayat", label: "Riwayat", ic: "\u21BB" },
   { id: "pengaturan", label: "Pengaturan", ic: "\u2699" },
 ];
+
+const isAdmin = () => !!state.user && state.user.role === "admin";
+const pages = () => ALL_PAGES.filter((p) => !p.admin || isAdmin());
 
 const esc = (s) =>
   String(s == null ? "" : s).replace(/[&<>"']/g, (c) =>
@@ -112,14 +118,16 @@ function statusPill() {
 function render() {
   if (!state.user) return renderLogin();
 
+  if (!pages().some((p) => p.id === state.page)) state.page = "koneksi";
+
   app.innerHTML = `
     <div class="shell">
       <aside class="sidebar">
         <div class="brand">
           <div class="brand-dot">&#9679;</div>
-          <div><strong>WA Scheduler</strong><span>${esc(state.user.email)}</span></div>
+          <div><strong>WA Scheduler</strong><span>${esc(state.user.email)} &middot; ${isAdmin() ? "Admin" : "Operator"}</span></div>
         </div>
-        ${PAGES.map(
+        ${pages().map(
           (p) =>
             `<button class="nav-btn ${state.page === p.id ? "active" : ""}" data-page="${p.id}"><span>${p.ic}</span>${p.label}</button>`,
         ).join("")}
@@ -128,7 +136,7 @@ function render() {
       </aside>
       <main class="main">${pageContent()}</main>
       <nav class="bottom-nav">
-        ${PAGES.slice(0, 5)
+        ${pages().slice(0, 5)
           .map(
             (p) =>
               `<button class="${state.page === p.id ? "active" : ""}" data-page="${p.id}"><span class="ic">${p.ic}</span>${p.label}</button>`,
@@ -163,6 +171,8 @@ function pageContent() {
   switch (state.page) {
     case "koneksi":
       return pageKoneksi();
+    case "status":
+      return pageStatus();
     case "baru":
       return pageBaru();
     case "jadwal":
